@@ -10,7 +10,7 @@
 ### Steps:
 #### - compile module: 
 ``` 
-  python setup_simple_graph.py
+  python setup_simple_graph.py install
 ```
 #### - check corectness: 
 ``` 
