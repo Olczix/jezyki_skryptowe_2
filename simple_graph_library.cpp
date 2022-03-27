@@ -4,6 +4,7 @@
 
 #include <Python.h>
 #include <iostream>
+#include <list>
 #define VERTICES 16
 using namespace std;
 
@@ -24,7 +25,7 @@ typedef struct {
 } AdjacencyMatrix;
 
 // Konstruktor typu AdjacencyMatrix.
-static PyObject *AdjacencyMatrix__new__( PyTypeObject *type, PyObject *args ) {
+static PyObject *AdjacencyMatrix__new__( PyTypeObject *type ) {
     return type->tp_alloc( type, 0 );
 }
 
@@ -48,7 +49,7 @@ static int AdjacencyMatrix__init__(AdjacencyMatrix *self, PyObject *args ) {
             self->edges_array[i] = 0;
         }  
 
-        // extract information about edges
+        // Pobieranie informacji o krawędziach
         int k = 0, i = 1, c;
         for(int v = 1; v < vertices_number; v++) {
             for (int u = 0; u < v; u++ ) {
@@ -64,12 +65,12 @@ static int AdjacencyMatrix__init__(AdjacencyMatrix *self, PyObject *args ) {
                 }
             }       
         }
-        
         return 0;
     }
     return -1;
 }
 
+// Reprezentacja tekstowa macierzy sąsiedztwa.
 static PyObject *AdjacencyMatrix__str__( AdjacencyMatrix *self ) {
     PyObject *r = PyUnicode_FromFormat( "AdjacencyMatrix to string\n");
     return r;
@@ -93,14 +94,12 @@ static PyObject *method_vertices( AdjacencyMatrix *self ) {
     return results_set;
 }
 
-
 // Stopień wierzchołka.
 static PyObject *method_vertex_degree( AdjacencyMatrix *self, PyObject *args ) {
     int vertex;
     PyArg_ParseTuple( args, "i", &vertex);
     return PyLong_FromLong(count_ones(self->edges_array[vertex]));
 }
-
 
 // Sąsiedztwo wierzchołka.
 static PyObject *method_vertex_neighbors( AdjacencyMatrix *self, PyObject *args ) {
@@ -117,7 +116,6 @@ static PyObject *method_vertex_neighbors( AdjacencyMatrix *self, PyObject *args 
       return neighbours;
 }
 
-
 // Dodanie wierzchołka do grafu. (metoda typu 'void')
 static PyObject *method_add_vertex( AdjacencyMatrix *self, PyObject *args ) {
     int vertex;
@@ -129,7 +127,6 @@ static PyObject *method_add_vertex( AdjacencyMatrix *self, PyObject *args ) {
     }
     Py_RETURN_NONE;
 }
-
 
 // Usunięcie wierzchołka do grafu. (metoda typu 'void')
 static PyObject *method_delete_vertex( AdjacencyMatrix *self, PyObject *args ) {
@@ -147,7 +144,6 @@ static PyObject *method_delete_vertex( AdjacencyMatrix *self, PyObject *args ) {
     Py_RETURN_NONE;
 }
 
-
 // Liczba krawędzi w grafie.
 static PyObject *method_number_of_edges( AdjacencyMatrix *self ){
     int all_edges = 0;
@@ -156,7 +152,6 @@ static PyObject *method_number_of_edges( AdjacencyMatrix *self ){
     }
     return PyLong_FromLong(all_edges/2);
 }
-
 
 // Krawędzie grafu.
 static PyObject *method_edges( AdjacencyMatrix *self ) {
@@ -175,7 +170,7 @@ static PyObject *method_edges( AdjacencyMatrix *self ) {
     return results_set;
 }
 
-// Czy wierzchołki ze sobą sąsiadują
+// Czy wierzchołki ze sobą sąsiadują?
 static PyObject *method_is_edge( AdjacencyMatrix *self, PyObject *args ) {
     Py_INCREF(Py_True);
     PyObject* result = Py_True;   
@@ -190,7 +185,6 @@ static PyObject *method_is_edge( AdjacencyMatrix *self, PyObject *args ) {
     return result;
 }
 
-
 // Dodanie krawędzi. (metoda typu 'void')
 static PyObject *method_add_edge( AdjacencyMatrix *self, PyObject *args ) {
     int v1, v2;
@@ -199,7 +193,6 @@ static PyObject *method_add_edge( AdjacencyMatrix *self, PyObject *args ) {
     self->edges_array[v2] += (1 << (VERTICES - 1 - v1));
     Py_RETURN_NONE;
 }
-
 
 // Usunięcie krawędzi. (metoda typu 'void')
 static PyObject *method_delete_edge( AdjacencyMatrix *self, PyObject *args ) {
@@ -210,32 +203,66 @@ static PyObject *method_delete_edge( AdjacencyMatrix *self, PyObject *args ) {
     Py_RETURN_NONE;
 }
 
-// Dopełenienie grafu.
-static PyObject *method_complement( AdjacencyMatrix *self ){
-    AdjacencyMatrix matrix;       // inicjalizacja macierzy
+// Wygładzanie grafu.   (METODA DODATKOWA)
+static PyObject *method_smoothing( AdjacencyMatrix *self ){
+    AdjacencyMatrix matrix;
     
     // Inicjalizacja zerami w tablicy krawędzi
-    for(int i = 0 ; i < VERTICES; i++) {
+    for(int i = 0 ; i < VERTICES; i++)
         matrix.edges_array[i] = 0;
+
+    // Przepisanie listy wierzchołków oraz tablicy z krawędziami
+    matrix.vertices_int = self->vertices_int;
+    for(int i = 0 ; i < VERTICES; i++)
+        matrix.edges_array[i] = self->edges_array[i];
+
+    // Utworzenie listy wierzchołów o stopniu 2
+    list<int> vs{};
+    for(int i = 0 ; i < VERTICES; i++)
+        if(count_ones(matrix.edges_array[i]) == 2)
+            vs.push_back(i);
+
+    list<int> neighbours{};              // sąsiedzi wierzchołka o stopniu 2
+    int vertex, u0, u1;
+    while( !vs.empty() )
+    {
+        vertex = vs.front();            // vs[0]
+        for(int i = 0 ; i < VERTICES; i++)
+            if((matrix.edges_array[vertex] >> (VERTICES - 1 - i)) % 2 == 1)     // wierzchołek 'i' jest sąsiadem wierzchołka
+                neighbours.push_back(i);
+
+        // Usuwanie wierzchołka i powiązanych z nim krawędzi
+        matrix.vertices_int -= (1 << (VERTICES - 1 - vertex));
+        matrix.edges_array[vertex] = 0;
+        for(int i = 0; i < VERTICES; i++)
+            if(i != vertex)
+                if((matrix.edges_array[i] >> (VERTICES - 1 - vertex)) % 2 == 1)
+                    matrix.edges_array[i] -= (1 << (VERTICES - 1 - vertex));
+        
+        // Dodanie krawędzi pomiędzy bepośrednimi sąsiadami wierzchołka (jeśli takiej nie było wcześniej)
+        u0 = neighbours.front();    neighbours.pop_front();
+        u1 = neighbours.front();    neighbours.pop_front();
+        if((matrix.edges_array[u0] >> (VERTICES - 1 - u1)) % 2 == 0)
+            matrix.edges_array[u0] += (1 << (VERTICES - 1 - u1));
+        if((matrix.edges_array[u1] >> (VERTICES - 1 - u0)) % 2 == 0)
+            matrix.edges_array[u1] += (1 << (VERTICES - 1 - u0));
+
+        // Aktualizacja listy wierzchołków o stopniu 2
+        vs.clear();
+        for(int i = 0 ; i < VERTICES; i++)
+            if(count_ones(matrix.edges_array[i]) == 2)
+                vs.push_back(i);
+    }
+
+    // Przepisanie do obiektu self
+    self->vertices_int = matrix.vertices_int;
+    for(int i = 0 ; i < VERTICES; i++) {
+        self->edges_array[i] = matrix.edges_array[i];
     }
     
-    // Inicjalizacja listy wierzchołków
-    matrix.vertices_int = self->vertices_int;
-
-    // Dopełnienie
-    for(int i = 0; i < VERTICES; i++) {
-        if((self->vertices_int >> (VERTICES - 1 - i)) % 2 == 1) {
-            matrix.edges_array[i] = ((~self->edges_array[i]) - (1 << (VERTICES - 1 - i))) & self->vertices_int;
-        }
-    }
-
-    // TODO: chwilowo to jest None, bo nie umiem zwrócić struktury
     Py_RETURN_NONE;
-
-    // TODO: jak tutaj zwrócić strukturę, aby Python uznał to za obiekt typu AdjacencyMatrix?
-    // return matrix;
+    //return (PyObject*)self;
 }
-
 
 // Lista wszystkich dostępnych metod w tym module wraz z opiem, etc.
 static PyMethodDef SimpleGraphsMethods[] = {
@@ -250,16 +277,16 @@ static PyMethodDef SimpleGraphsMethods[] = {
     {"is_edge", (PyCFunction)method_is_edge, METH_VARARGS, "Return information if given vertices are neighbours."},
     {"add_edge", (PyCFunction)(void(*)(void))method_add_edge, METH_VARARGS, "Add edge to the graph."},
     {"delete_edge", (PyCFunction)(void(*)(void))method_delete_edge, METH_VARARGS, "Delete edge from graph."},
-    // TODO: Tutaj są wszystkie wspominki na funkcje, które są w tym module dostępne. Ta poniżej chwilowo ma (void)
-    // ze względu na to, że nie potrafię zwrócić struktury. Gdzieś wyczytałam, że to musi być typ chyba "PyObject*" (?)
-    {"complement", (PyCFunction)(void(*)(void))method_complement, METH_NOARGS, "Return complement of the graph."},
+    {"smoothing", (PyCFunction)(void(*)(void))method_smoothing, METH_NOARGS, "Return graph after smoothing operation."},
+    //{"smoothing", (PyCFunction)method_smoothing, METH_NOARGS, "Return graph after smoothing operation."},
     {NULL}
 };
 
+
 // Opis typu AdjacencyMatrix.
 static PyTypeObject AdjacencyMatrixType = {
-    PyVarObject_HEAD_INIT( NULL,0 ) // inicjalizacja
-    "simple_graphs.AdjacencyMatrix", // nazwa
+    PyVarObject_HEAD_INIT(NULL, 0)          // inicjalizacja
+    "simple_graphs.AdjacencyMatrix",        // nazwa
     sizeof( AdjacencyMatrix ), // rozmiar
     0, //
     (destructor)AdjacencyMatrix__del__, // destruktor
