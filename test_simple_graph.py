@@ -1,23 +1,20 @@
-# Testowanie/porówananie działania kodu prowadzącego i mojego modułu (klasa AdjacencyMartix)
-# python3 test_simple_graph.py
+import simple_graphs            
+from graphs import Graph        
 
-import simple_graphs            # import tworzonego przeze mnie modułu
-from graphs import Graph        # import klasy utworzonej przez prowadzącego
-                                # obie powyższe klasy mają robić to samo 
+g6_format = "G???F?"
+for i in range(1000):
+    g1 = Graph(g6_format)
+    g2 = g1.smoothing()
 
-# Wykonanie dopełnienia grafu przez klasę udostępnioną przez prowadzącego
-g1 = Graph("CT")
-complement_g1 = g1.complement()
+    g = simple_graphs.AdjacencyMatrix(g6_format)
+    g.smoothing()
 
-
-# Wykonanie dopełnienia grafu przez mój moduł
-g = simple_graphs.AdjacencyMatrix("CT")
-
-# TODO: wywołanie g.complement() ma zwracać nowy obiekt typu AdjacencyMatrix
-# (w C++ jest to zaimplementowane jako struktura)
-complement_g = g.complement()   
-
-
-# TODO: sprawdzenie czy tworzenie dopełnienia grafu zadziała poprawnie
-if complement_g == complement_g1:
-    print("Dopełnienia grafów są równe")
+    if g2 == g:
+        print(f"[{i}] OK")
+    else:
+        print(f"[{i}] FAIL")
+    
+    # if g1.smoothing() == g.smoothing():
+    #     print(f"[{i}] OK")
+    # else:
+    #     print(f"[{i}] FAIL")
