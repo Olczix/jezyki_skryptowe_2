@@ -7,12 +7,8 @@
 * simple_graph_library.cpp - actual implementation of the module; written in C++ in order to enable Python to use this as a module,
 * test_simple_graph.py - short comparison if implemented module actually returns proper values (compared to the class provided by the teacher).
 
-### Steps:
-#### - compile module: 
+### Compile module: 
 ``` 
   python setup_simple_graph.py install
 ```
-#### - check corectness: 
-``` 
-  python test_simple_graph.py
-```
+
